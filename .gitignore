@@ -1,0 +1,4 @@
+# Specify filepatterns you want git to ignore.
+
+.zig-cache/
+zig-out/
