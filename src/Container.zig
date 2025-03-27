@@ -7,6 +7,7 @@ pub const Container = struct {
     path: []const u8,
 
     data: ?Data,
+    data_allocator: ?*std.heap.ArenaAllocator,
 
     allocator: std.mem.Allocator,
 
@@ -281,7 +282,7 @@ pub const Container = struct {
             // ExposedPorts: ?ConfigExposedPorts = null,
             Tty: bool,
             OpenStdin: bool,
-            StdingOnce: bool,
+            StdinOnce: bool,
             Env: []const []const u8,
             Cmd: []const []const u8,
             Healthcheck: ?ConfigHealthcheck = null,
@@ -346,6 +347,7 @@ pub const Container = struct {
         const container = Container{
             .path = path,
             .data = null,
+            .data_allocator = null,
             .allocator = allocator,
         };
         return container;
@@ -353,6 +355,10 @@ pub const Container = struct {
 
     pub fn deinit(self: *Container) void {
         self.allocator.free(self.path);
+        if (self.data_allocator) |allocator| {
+            allocator.deinit();
+            self.allocator.destroy(allocator);
+        }
     }
 
     pub fn create(self: *Container, req: CreateReq) !void {
@@ -408,6 +414,7 @@ pub const Container = struct {
     pub fn inspect(self: *Container, req: InspectReq) !void {
         const inspect_res = try makeInspectRequest(self.allocator, self.path, req);
         self.data = inspect_res.body;
+        self.data_allocator = inspect_res.arena;
     }
 };
 

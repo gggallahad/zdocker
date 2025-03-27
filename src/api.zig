@@ -58,30 +58,30 @@ pub fn makeHttpRequest(allocator: std.mem.Allocator, method: http.Method, url: [
     var req = try http_client.open(method, uri, .{ .extra_headers = &headers, .server_header_buffer = &server_header_buffer });
     errdefer req.deinit();
 
-    switch (method) {
-        .GET => {
-            try req.send();
-            try req.finish();
-            try req.wait();
-        },
-        .POST => {
-            if (body) |valid_body| {
-                req.transfer_encoding = .{ .content_length = valid_body.len };
-                try req.send();
-                try req.writeAll(valid_body);
-                try req.finish();
-                try req.wait();
-            } else {
-                try req.send();
-                try req.finish();
-                try req.wait();
-            }
-        },
-
-        else => {
-            return ApiError.UnknownRequestMethod;
-        },
+    // switch (method) {
+    //     .GET => {
+    //         try req.send();
+    //         try req.finish();
+    //         try req.wait();
+    //     },
+    // .POST => {
+    if (body) |valid_body| {
+        req.transfer_encoding = .{ .content_length = valid_body.len };
+        try req.send();
+        try req.writeAll(valid_body);
+        try req.finish();
+        try req.wait();
+    } else {
+        try req.send();
+        try req.finish();
+        try req.wait();
     }
+    // },
+
+    // else => {
+    // return ApiError.UnknownRequestMethod;
+    // },
+    // }
 
     const status_code = req.response.status;
     const body_buffer = try req.reader().readAllAlloc(allocator, body_max_len);
