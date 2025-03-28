@@ -355,62 +355,77 @@ pub const Container = struct {
 
     pub fn deinit(self: *Container) void {
         self.allocator.free(self.path);
-        if (self.data_allocator) |allocator| {
-            allocator.deinit();
-            self.allocator.destroy(allocator);
+        if (self.data_allocator) |data_allocator| {
+            data_allocator.deinit();
+            self.allocator.destroy(data_allocator);
         }
     }
 
-    pub fn create(self: *Container, req: CreateReq) !void {
-        var create_res = try makeCreateRequest(self.allocator, self.path, req);
-        errdefer create_res.deinit();
-
-        const inspect_req = InspectReq.init(&create_res.body.Id, false);
-        try self.inspect(inspect_req);
-
-        create_res.deinit();
+    pub fn create(self: *Container, req: CreateReq) !CreateRes {
+        const create_res = try makeCreateRequest(self.allocator, self.path, req);
+        return create_res;
     }
 
-    pub fn remove(self: *Container) !void {
+    pub fn remove(self: *Container, req: RemoveReq) !void {
         if (self.data) |data| {
-            const req = RemoveReq.init(&data.Id, false, false, false);
-            try makeRemoveRequest(self.allocator, self.path, req);
+            try makeRemoveRequest(self.allocator, self.path, &data.Id, req);
         } else {
             return ContainerError.Uninitialized;
         }
     }
 
-    pub fn start(self: *Container) !void {
+    pub fn removeContainer(self: *Container, id_or_name: []const u8, req: RemoveReq) !void {
+        try makeRemoveRequest(self.allocator, self.path, id_or_name, req);
+    }
+
+    pub fn start(self: *Container, req: StartReq) !void {
         if (self.data) |data| {
-            const req = StartReq.init(&data.Id, &.{});
-            try makeStartRequest(self.allocator, self.path, req);
+            try makeStartRequest(self.allocator, self.path, &data.Id, req);
         } else {
             return ContainerError.Uninitialized;
         }
     }
 
-    pub fn stop(self: *Container) !void {
+    pub fn startContainer(self: *Container, id_or_name: []const u8, req: StartReq) !void {
+        try makeStartRequest(self.allocator, self.path, id_or_name, req);
+    }
+
+    pub fn stop(self: *Container, req: StopReq) !void {
         if (self.data) |data| {
-            const req = StopReq.init(&data.Id, &.{}, 0);
-            try makeStopRequest(self.allocator, self.path, req);
+            try makeStopRequest(self.allocator, self.path, &data.Id, req);
         } else {
             return ContainerError.Uninitialized;
         }
     }
 
-    pub fn restart(self: *Container) !void {
+    pub fn stopContainer(self: *Container, id_or_name: []const u8, req: StopReq) !void {
+        try makeStopRequest(self.allocator, self.path, id_or_name, req);
+    }
+
+    pub fn restart(self: *Container, req: RestartReq) !void {
         if (self.data) |data| {
-            const req = RestartReq.init(&data.Id, &.{}, 0);
-            try makeRestartRequest(self.allocator, self.path, req);
+            try makeRestartRequest(self.allocator, self.path, &data.Id, req);
         } else {
             return ContainerError.Uninitialized;
         }
     }
 
-    pub fn inspect(self: *Container, req: InspectReq) !void {
-        const inspect_res = try makeInspectRequest(self.allocator, self.path, req);
-        self.data = inspect_res.body;
-        self.data_allocator = inspect_res.arena_allocator;
+    pub fn restartContainer(self: *Container, id_or_name: []const u8, req: RestartReq) !void {
+        try makeRestartRequest(self.allocator, self.path, id_or_name, req);
+    }
+
+    pub fn inspect(self: *Container, req: InspectReq) !InspectRes {
+        if (self.data) |data| {
+            const inspect_res = try makeInspectRequest(self.allocator, self.path, &data.Id, req);
+            return inspect_res;
+        } else {
+            return ContainerError.Uninitialized;
+        }
+    }
+
+    pub fn inspectContainer(self: *Container, id_or_name: []const u8, req: InspectReq) !InspectRes {
+        const inspect_res = try makeInspectRequest(self.allocator, self.path, id_or_name, req);
+        return inspect_res;
     }
 };
 
@@ -432,6 +447,8 @@ pub const CreateReq = struct {
     args: Args,
     body: Body,
 
+    allocator: std.mem.Allocator,
+
     pub const Args = struct {
         name: []const u8,
         platform: []const u8,
@@ -442,7 +459,7 @@ pub const CreateReq = struct {
         Cmd: []const []const u8,
     };
 
-    pub fn init(name: []const u8, platform: []const u8, image: []const u8, cmd: []const []const u8) CreateReq {
+    pub fn init(allocator: std.mem.Allocator, name: []const u8, platform: []const u8, image: []const u8, cmd: []const []const u8) CreateReq {
         const create_req = CreateReq{
             .args = .{
                 .name = name,
@@ -452,15 +469,16 @@ pub const CreateReq = struct {
                 .Image = image,
                 .Cmd = cmd,
             },
+            .allocator = allocator,
         };
         return create_req;
     }
 
-    pub fn deinit(self: *CreateReq, allocator: std.mem.Allocator) void {
-        allocator.free(self.args.name);
-        allocator.free(self.args.platform);
-        allocator.free(self.body.Image);
-        allocator.free(self.body.Cmd);
+    pub fn deinit(self: *CreateReq) void {
+        self.allocator.free(self.args.name);
+        self.allocator.free(self.args.platform);
+        self.allocator.free(self.body.Image);
+        self.allocator.free(self.body.Cmd);
     }
 };
 
@@ -508,37 +526,36 @@ pub const CreateError = error{
 // remove
 
 pub const RemoveReq = struct {
-    const method = http.Method.DELETE;
-    const path = "/containers/{s}";
+    pub const method = http.Method.DELETE;
+    pub const path = "/containers/{s}";
 
-    const arg_v = "v";
-    const arg_force = "force";
-    const arg_link = "link";
+    pub const arg_v = "v";
+    pub const arg_force = "force";
+    pub const arg_link = "link";
 
     args: Args,
 
+    allocator: std.mem.Allocator,
+
     pub const Args = struct {
-        id_or_name: []const u8,
         v: bool,
         force: bool,
         link: bool,
     };
 
-    pub fn init(id_or_name: []const u8, v: bool, force: bool, link: bool) RemoveReq {
+    pub fn init(allocator: std.mem.Allocator, v: bool, force: bool, link: bool) RemoveReq {
         const remove_req = RemoveReq{
             .args = .{
-                .id_or_name = id_or_name,
                 .v = v,
                 .force = force,
                 .link = link,
             },
+            .allocator = allocator,
         };
         return remove_req;
     }
 
-    pub fn deinit(self: *RemoveReq, allocator: std.mem.Allocator) void {
-        allocator.free(self.args.id_or_name);
-    }
+    pub fn deinit(_: *RemoveReq) void {}
 };
 
 pub const RemoveError = error{
@@ -551,31 +568,31 @@ pub const RemoveError = error{
 // start
 
 pub const StartReq = struct {
-    const method = http.Method.POST;
-    const path = "/containers/{s}/start";
+    pub const method = http.Method.POST;
+    pub const path = "/containers/{s}/start";
 
-    const arg_detachKeys = "detachKeys";
+    pub const arg_detachKeys = "detachKeys";
 
     args: Args,
 
+    allocator: std.mem.Allocator,
+
     pub const Args = struct {
-        id_or_name: []const u8,
         detachKeys: []const u8,
     };
 
-    pub fn init(id_or_name: []const u8, detachKeys: []const u8) StartReq {
+    pub fn init(allocator: std.mem.Allocator, detachKeys: []const u8) StartReq {
         const start_req = StartReq{
             .args = .{
-                .id_or_name = id_or_name,
                 .detachKeys = detachKeys,
             },
+            .allocator = allocator,
         };
         return start_req;
     }
 
-    pub fn deinit(self: *StartReq, allocator: std.mem.Allocator) void {
-        allocator.free(self.args.id_or_name);
-        allocator.free(self.args.detachKeys);
+    pub fn deinit(self: *StartReq) void {
+        self.allocator.free(self.args.detachKeys);
     }
 };
 
@@ -588,34 +605,34 @@ pub const StartError = error{
 // stop
 
 pub const StopReq = struct {
-    const method = http.Method.POST;
-    const path = "/containers/{s}/stop";
+    pub const method = http.Method.POST;
+    pub const path = "/containers/{s}/stop";
 
-    const arg_signal = "signal";
-    const arg_t = "t";
+    pub const arg_signal = "signal";
+    pub const arg_t = "t";
 
     args: Args,
 
+    allocator: std.mem.Allocator,
+
     pub const Args = struct {
-        id_or_name: []const u8,
         signal: []const u8,
         t: i64,
     };
 
-    pub fn init(id_or_name: []const u8, signal: []const u8, t: i64) StopReq {
+    pub fn init(allocator: std.mem.Allocator, signal: []const u8, t: i64) StopReq {
         const stop_req = StopReq{
             .args = .{
-                .id_or_name = id_or_name,
                 .signal = signal,
                 .t = t,
             },
+            .allocator = allocator,
         };
         return stop_req;
     }
 
-    pub fn deinit(self: *StopReq, allocator: std.mem.Allocator) void {
-        allocator.free(self.args.id_or_name);
-        allocator.free(self.args.signal);
+    pub fn deinit(self: *StopReq) void {
+        self.allocator.free(self.args.signal);
     }
 };
 
@@ -628,34 +645,34 @@ pub const StopError = error{
 // restart
 
 pub const RestartReq = struct {
-    const method = http.Method.POST;
-    const path = "/containers/{s}/restart";
+    pub const method = http.Method.POST;
+    pub const path = "/containers/{s}/restart";
 
-    const arg_signal = "signal";
-    const arg_t = "t";
+    pub const arg_signal = "signal";
+    pub const arg_t = "t";
 
     args: Args,
 
+    allocator: std.mem.Allocator,
+
     pub const Args = struct {
-        id_or_name: []const u8,
         signal: []const u8,
         t: i64,
     };
 
-    pub fn init(id_or_name: []const u8, signal: []const u8, t: i64) RestartReq {
+    pub fn init(allocator: std.mem.Allocator, signal: []const u8, t: i64) RestartReq {
         const restart_req = RestartReq{
             .args = .{
-                .id_or_name = id_or_name,
                 .signal = signal,
                 .t = t,
             },
+            .allocator = allocator,
         };
         return restart_req;
     }
 
-    pub fn deinit(self: *RestartReq, allocator: std.mem.Allocator) void {
-        allocator.free(self.args.id_or_name);
-        allocator.free(self.args.signal);
+    pub fn deinit(self: *RestartReq) void {
+        self.allocator.free(self.args.signal);
     }
 };
 
@@ -667,31 +684,30 @@ pub const RestartError = error{
 // inspect
 
 pub const InspectReq = struct {
-    const method = http.Method.GET;
-    const path = "/containers/{s}/json";
+    pub const method = http.Method.GET;
+    pub const path = "/containers/{s}/json";
 
-    const arg_size = "size";
+    pub const arg_size = "size";
 
     args: Args,
 
+    allocator: std.mem.Allocator,
+
     pub const Args = struct {
-        id_or_name: []const u8,
         size: bool,
     };
 
-    pub fn init(id_or_name: []const u8, size: bool) InspectReq {
+    pub fn init(allocator: std.mem.Allocator, size: bool) InspectReq {
         const inspect_req = InspectReq{
             .args = .{
-                .id_or_name = id_or_name,
                 .size = size,
             },
+            .allocator = allocator,
         };
         return inspect_req;
     }
 
-    pub fn deinit(self: *InspectReq, allocator: std.mem.Allocator) void {
-        allocator.free(self.args.id_or_name);
-    }
+    pub fn deinit(_: *InspectReq) void {}
 };
 
 pub const InspectRes = struct {
@@ -728,7 +744,7 @@ pub const InspectError = error{
     ServerError,
 };
 
-pub fn makeCreateRequest(allocator: std.mem.Allocator, path: []const u8, req: CreateReq) !CreateRes {
+fn makeCreateRequest(allocator: std.mem.Allocator, path: []const u8, req: CreateReq) !CreateRes {
     var http_response = prepare: {
         const url = try std.mem.join(allocator, "", &.{ path, CreateReq.path });
         errdefer allocator.free(url);
@@ -789,9 +805,9 @@ pub fn makeCreateRequest(allocator: std.mem.Allocator, path: []const u8, req: Cr
     }
 }
 
-fn makeRemoveRequest(allocator: std.mem.Allocator, path: []const u8, req: RemoveReq) !void {
+fn makeRemoveRequest(allocator: std.mem.Allocator, path: []const u8, id_or_name: []const u8, req: RemoveReq) !void {
     var http_response = prepare: {
-        const url_format = try std.fmt.allocPrint(allocator, RemoveReq.path, .{req.args.id_or_name});
+        const url_format = try std.fmt.allocPrint(allocator, RemoveReq.path, .{id_or_name});
         errdefer allocator.free(url_format);
         const url = try std.mem.join(allocator, "", &.{ path, url_format });
         errdefer allocator.free(url);
@@ -851,9 +867,9 @@ fn makeRemoveRequest(allocator: std.mem.Allocator, path: []const u8, req: Remove
     }
 }
 
-fn makeStartRequest(allocator: std.mem.Allocator, path: []const u8, req: StartReq) !void {
+fn makeStartRequest(allocator: std.mem.Allocator, path: []const u8, id_or_name: []const u8, req: StartReq) !void {
     var http_response = prepare: {
-        const url_format = try std.fmt.allocPrint(allocator, StartReq.path, .{req.args.id_or_name});
+        const url_format = try std.fmt.allocPrint(allocator, StartReq.path, .{id_or_name});
         errdefer allocator.free(url_format);
         const url = try std.mem.join(allocator, "", &.{ path, url_format });
         errdefer allocator.free(url);
@@ -893,9 +909,9 @@ fn makeStartRequest(allocator: std.mem.Allocator, path: []const u8, req: StartRe
     }
 }
 
-fn makeStopRequest(allocator: std.mem.Allocator, path: []const u8, req: StopReq) !void {
+fn makeStopRequest(allocator: std.mem.Allocator, path: []const u8, id_or_name: []const u8, req: StopReq) !void {
     var http_response = prepare: {
-        const url_format = try std.fmt.allocPrint(allocator, StopReq.path, .{req.args.id_or_name});
+        const url_format = try std.fmt.allocPrint(allocator, StopReq.path, .{id_or_name});
         errdefer allocator.free(url_format);
         const url = try std.mem.join(allocator, "", &.{ path, url_format });
         errdefer allocator.free(url);
@@ -941,9 +957,9 @@ fn makeStopRequest(allocator: std.mem.Allocator, path: []const u8, req: StopReq)
     }
 }
 
-fn makeRestartRequest(allocator: std.mem.Allocator, path: []const u8, req: RestartReq) !void {
+fn makeRestartRequest(allocator: std.mem.Allocator, path: []const u8, id_or_name: []const u8, req: RestartReq) !void {
     var http_response = prepare: {
-        const url_format = try std.fmt.allocPrint(allocator, RestartReq.path, .{req.args.id_or_name});
+        const url_format = try std.fmt.allocPrint(allocator, RestartReq.path, .{id_or_name});
         errdefer allocator.free(url_format);
         const url = try std.mem.join(allocator, "", &.{ path, url_format });
         errdefer allocator.free(url);
@@ -986,9 +1002,9 @@ fn makeRestartRequest(allocator: std.mem.Allocator, path: []const u8, req: Resta
     }
 }
 
-fn makeInspectRequest(allocator: std.mem.Allocator, path: []const u8, req: InspectReq) !InspectRes {
+fn makeInspectRequest(allocator: std.mem.Allocator, path: []const u8, id_or_name: []const u8, req: InspectReq) !InspectRes {
     var http_response = prepare: {
-        const url_format = try std.fmt.allocPrint(allocator, InspectReq.path, .{req.args.id_or_name});
+        const url_format = try std.fmt.allocPrint(allocator, InspectReq.path, .{id_or_name});
         errdefer allocator.free(url_format);
         const url = try std.mem.join(allocator, "", &.{ path, url_format });
         errdefer allocator.free(url);
