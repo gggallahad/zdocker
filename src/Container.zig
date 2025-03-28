@@ -365,12 +365,8 @@ pub const Container = struct {
         var create_res = try makeCreateRequest(self.allocator, self.path, req);
         errdefer create_res.deinit();
 
-        if (create_res.body) |body| {
-            const inspect_req = InspectReq.init(&body.Id, false);
-            try self.inspect(inspect_req);
-        } else {
-            unreachable;
-        }
+        const inspect_req = InspectReq.init(&create_res.body.Id, false);
+        try self.inspect(inspect_req);
 
         create_res.deinit();
     }
@@ -414,7 +410,7 @@ pub const Container = struct {
     pub fn inspect(self: *Container, req: InspectReq) !void {
         const inspect_res = try makeInspectRequest(self.allocator, self.path, req);
         self.data = inspect_res.body;
-        self.data_allocator = inspect_res.arena;
+        self.data_allocator = inspect_res.arena_allocator;
     }
 };
 
@@ -469,32 +465,36 @@ pub const CreateReq = struct {
 };
 
 pub const CreateRes = struct {
-    body: ?Body,
+    body: Body,
 
-    arena: *std.heap.ArenaAllocator,
+    arena_allocator: *std.heap.ArenaAllocator,
 
     pub const Body = struct {
         Id: [Container.Data.id_len]u8,
         Warnings: []const []const u8,
     };
 
-    pub fn init(allocator: std.mem.Allocator) !CreateRes {
+    pub fn createArenaAllocator(allocator: std.mem.Allocator) !*std.heap.ArenaAllocator {
         var arena_allocator = try allocator.create(std.heap.ArenaAllocator);
         errdefer allocator.destroy(arena_allocator);
         arena_allocator.* = std.heap.ArenaAllocator.init(allocator);
         errdefer arena_allocator.deinit();
 
+        return arena_allocator;
+    }
+
+    pub fn init(arena_allocator: *std.heap.ArenaAllocator, body: Body) CreateRes {
         const create_res = CreateRes{
-            .body = null,
-            .arena = arena_allocator,
+            .body = body,
+            .arena_allocator = arena_allocator,
         };
         return create_res;
     }
 
     pub fn deinit(self: *CreateRes) void {
-        const allocator = self.arena.child_allocator;
-        self.arena.deinit();
-        allocator.destroy(self.arena);
+        const allocator = self.arena_allocator.child_allocator;
+        self.arena_allocator.deinit();
+        allocator.destroy(self.arena_allocator);
     }
 };
 
@@ -695,27 +695,31 @@ pub const InspectReq = struct {
 };
 
 pub const InspectRes = struct {
-    body: ?Container.Data,
+    body: Container.Data,
 
-    arena: *std.heap.ArenaAllocator,
+    arena_allocator: *std.heap.ArenaAllocator,
 
-    pub fn init(allocator: std.mem.Allocator) !InspectRes {
+    pub fn createArenaAllocator(allocator: std.mem.Allocator) !*std.heap.ArenaAllocator {
         var arena_allocator = try allocator.create(std.heap.ArenaAllocator);
         errdefer allocator.destroy(arena_allocator);
         arena_allocator.* = std.heap.ArenaAllocator.init(allocator);
         errdefer arena_allocator.deinit();
 
+        return arena_allocator;
+    }
+
+    pub fn init(arena_allocator: *std.heap.ArenaAllocator, body: Container.Data) InspectRes {
         const inspect_res = InspectRes{
-            .body = null,
-            .arena = arena_allocator,
+            .body = body,
+            .arena_allocator = arena_allocator,
         };
         return inspect_res;
     }
 
     pub fn deinit(self: *InspectRes) void {
-        const allocator = self.arena.child_allocator;
-        self.arena.deinit();
-        allocator.destroy(self.arena);
+        const allocator = self.arena_allocator.child_allocator;
+        self.arena_allocator.deinit();
+        allocator.destroy(self.arena_allocator);
     }
 };
 
@@ -755,13 +759,14 @@ pub fn makeCreateRequest(allocator: std.mem.Allocator, path: []const u8, req: Cr
     switch (http_response.status_code) {
         .created => {
             if (http_response.body) |body| {
-                var res = try CreateRes.init(allocator);
-                errdefer res.deinit();
+                var arena_allocator = try CreateRes.createArenaAllocator(allocator);
+                errdefer allocator.destroy(arena_allocator);
 
-                res.body = try std.json.parseFromSliceLeaky(CreateRes.Body, res.arena.allocator(), body, .{ .allocate = .alloc_always, .ignore_unknown_fields = true });
+                const res_body = try std.json.parseFromSliceLeaky(CreateRes.Body, arena_allocator.allocator(), body, .{ .allocate = .alloc_always, .ignore_unknown_fields = true });
 
                 http_response.deinit(allocator);
 
+                const res = CreateRes.init(arena_allocator, res_body);
                 return res;
             }
             return api.ApiError.NoBody;
@@ -1010,13 +1015,14 @@ fn makeInspectRequest(allocator: std.mem.Allocator, path: []const u8, req: Inspe
     switch (http_response.status_code) {
         .ok => {
             if (http_response.body) |body| {
-                var res = try InspectRes.init(allocator);
-                errdefer res.deinit();
+                var arena_allocator = try InspectRes.createArenaAllocator(allocator);
+                errdefer allocator.destroy(arena_allocator);
 
-                res.body = try std.json.parseFromSliceLeaky(Container.Data, res.arena.allocator(), body, .{ .allocate = .alloc_always, .ignore_unknown_fields = true });
+                const res_body = try std.json.parseFromSliceLeaky(Container.Data, arena_allocator.allocator(), body, .{ .allocate = .alloc_always, .ignore_unknown_fields = true });
 
                 http_response.deinit(allocator);
 
+                const res = InspectRes.init(arena_allocator, res_body);
                 return res;
             }
             return api.ApiError.NoBody;

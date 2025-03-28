@@ -9,8 +9,6 @@ pub const ApiError = error{
     UnknownStatusCode,
 };
 
-// http
-
 pub const HttpResponse = struct {
     status_code: http.Status,
     body: ?[]u8,
@@ -58,13 +56,6 @@ pub fn makeHttpRequest(allocator: std.mem.Allocator, method: http.Method, url: [
     var req = try http_client.open(method, uri, .{ .extra_headers = &headers, .server_header_buffer = &server_header_buffer });
     errdefer req.deinit();
 
-    // switch (method) {
-    //     .GET => {
-    //         try req.send();
-    //         try req.finish();
-    //         try req.wait();
-    //     },
-    // .POST => {
     if (body) |valid_body| {
         req.transfer_encoding = .{ .content_length = valid_body.len };
         try req.send();
@@ -76,24 +67,9 @@ pub fn makeHttpRequest(allocator: std.mem.Allocator, method: http.Method, url: [
         try req.finish();
         try req.wait();
     }
-    // },
-
-    // else => {
-    // return ApiError.UnknownRequestMethod;
-    // },
-    // }
 
     const status_code = req.response.status;
     const body_buffer = try req.reader().readAllAlloc(allocator, body_max_len);
-    // var body_buffer: ?[]u8 = null;
-    // const body_length = req.response.content_length;
-    // if (body_length) |length| {
-    //     if (length != 0) {
-    //         body_buffer = try allocator.alloc(u8, length);
-    //         errdefer allocator.free(body_buffer.?);
-    //         _ = try req.readAll(body_buffer.?);
-    //     }
-    // }
 
     req.deinit();
     allocator.free(uri_string);
