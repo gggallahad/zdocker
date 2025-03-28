@@ -757,13 +757,12 @@ fn makeCreateRequest(allocator: std.mem.Allocator, path: []const u8, req: Create
             arg_name, arg_platform,
         };
 
-        var json_req = std.ArrayList(u8).init(allocator);
-        errdefer json_req.deinit();
-        try std.json.stringify(req.body, .{}, json_req.writer());
+        const json_req = try std.json.stringifyAlloc(allocator, req.body, .{});
+        errdefer allocator.free(json_req);
 
-        const http_response = try api.makeHttpRequest(allocator, CreateReq.method, url, &args, json_req.items);
+        const http_response = try api.makeHttpRequest(allocator, CreateReq.method, url, &args, json_req);
 
-        json_req.deinit();
+        allocator.free(json_req);
         allocator.free(arg_platform);
         allocator.free(arg_name);
         allocator.free(url);
