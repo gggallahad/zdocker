@@ -11,338 +11,6 @@ pub const Container = struct {
 
     allocator: std.mem.Allocator,
 
-    pub const Data = struct {
-        Id: [id_len]u8,
-        Created: ?[]const u8 = null,
-        Path: []const u8,
-        Args: []const []const u8,
-        State: ?DataState = null,
-        Image: []const u8,
-        ResolvConfPath: []const u8,
-        HostnamePath: []const u8,
-        HostsPath: []const u8,
-        LogPath: ?[]const u8 = null,
-        Name: []const u8,
-        RestartCount: i64,
-        Driver: []const u8,
-        Platform: []const u8,
-        ImageManifestDescriptor: ?DataImageManifestDescriptor = null,
-        MountLabel: []const u8,
-        ProcessLabel: []const u8,
-        AppArmorProfile: []const u8,
-        ExecIDs: ?[]const []const u8 = null,
-        HostConfig: DataHostConfig,
-        GraphDriver: DataGraphDriver,
-        SizeRw: ?i64 = null,
-        SizeRootFs: ?i64 = null,
-        Mounts: []DataMounts,
-        Config: DataConfig,
-        NetworkSettings: DataNetworkSettings,
-
-        pub const DataState = struct {
-            Status: []const u8,
-            Running: bool,
-            Paused: bool,
-            Restarting: bool,
-            OOMKilled: bool,
-            Dead: bool,
-            Pid: i64,
-            ExitCode: i64,
-            Error: []const u8,
-            StartedAt: []const u8,
-            FinishedAt: []const u8,
-            Health: ?StateHealth = null,
-
-            pub const StateHealth = struct {
-                Status: []const u8,
-                FailingStreak: i64,
-                Log: ?[]HealthLog = null,
-
-                pub const HealthLog = struct {
-                    Start: []const u8,
-                    End: []const u8,
-                    ExitCode: i64,
-                    Output: []const u8,
-                };
-            };
-        };
-
-        pub const DataImageManifestDescriptor = struct {
-            mediaType: []const u8,
-            digest: []const u8,
-            size: i64,
-            urls: ?[]const []const u8 = null,
-            // annotations: ?ImageManifestDescriptorAnnotation = null,
-            data: ?[]const u8 = null,
-            platform: ?ImageManifestDescriptorPlatform = null,
-            artifactType: ?[]const u8 = null,
-
-            pub const ImageManifestDescriptorPlatform = struct {
-                architecture: []const u8,
-                os: []const u8,
-                @"os.version": []const u8,
-                @"os.features": []const []const u8,
-                variant: []const u8,
-            };
-        };
-
-        pub const DataHostConfig = struct {
-            CpuShares: i64,
-            Memory: i64,
-            CgroupParent: []const u8,
-            BlkioWeight: i64,
-            BlkioWeightDevice: ?[]HostConfigBlkioWeightDevice = null,
-            BlkioDeviceReadBps: ?[]HostConfigBlkioDeviceReadBps = null,
-            BlkioDeviceWriteBps: ?[]HostConfigBlkioDeviceWriteBps = null,
-            BlkioDeviceReadIOps: ?[]HostConfigBlkioDeviceReadIOps = null,
-            BlkioDeviceWriteIOps: ?[]HostConfigBlkioDeviceWriteIOps = null,
-            CpuPeriod: i64,
-            CpuQuota: i64,
-            CpuRealtimePeriod: i64,
-            CpuRealtimeRuntime: i64,
-            CpusetCpus: []const u8,
-            CpusetMems: []const u8,
-            Devices: ?[]HostConfigDevices = null,
-            DeviceCgroupRules: ?[]const []const u8 = null,
-            DeviceRequests: ?[]HostConfigDeviceRequests = null,
-            KernelMemoryTCP: ?i64 = null,
-            MemoryReservation: i64,
-            MemorySwap: i64,
-            MemorySwappiness: ?i64 = null,
-            NanoCpus: i64,
-            OomKillDisable: bool,
-            Init: ?bool = null,
-            PidsLimit: ?i64 = null,
-            Ulimits: ?[]HostConfigUlimits = null,
-            CpuCount: i64,
-            CpuPercent: i64,
-            IOMaximumIOps: i64,
-            IOMaximumBandwidth: i64,
-            Binds: ?[]const []const u8 = null,
-            ContainerIDFile: []const u8,
-            LogConfig: HostConfigLogConfig,
-            NetworkMode: []const u8,
-            // PortBindings: ?HostConfigPortBindings = null,
-            RestartPolicy: HostConfigRestartPolicy,
-            AutoRemove: bool,
-            VolumeDriver: []const u8,
-            VolumesFrom: ?[]const []const u8 = null,
-            Mounts: ?[]HostConfigMounts = null,
-            ConsoleSize: ?[]i64 = null,
-            // Annotations: HostConfigAnnotations,
-            CapAdd: ?[]const []const u8 = null,
-            CapDrop: ?[]const []const u8 = null,
-            CgroupnsMode: []const u8,
-            Dns: ?[]const []const u8 = null,
-            DnsOptions: ?[]const []const u8 = null,
-            DnsSearch: ?[]const []const u8 = null,
-            ExtraHosts: ?[]const []const u8 = null,
-            GroupAdd: ?[]const []const u8 = null,
-            IpcMode: []const u8,
-            Cgroup: []const u8,
-            Links: ?[]const []const u8 = null,
-            OomScoreAdj: i64,
-            PidMode: []const u8,
-            Privileged: bool,
-            PublishAllPorts: bool,
-            ReadonlyRootfs: bool,
-            SecurityOpt: ?[]const []const u8 = null,
-            // StorageOpt: ?HostConfigStorageOpt = null,
-            // Tmpfs: ?HostConfigTmpfs = null,
-            UTSMode: []const u8,
-            UsernsMode: []const u8,
-            ShmSize: i64,
-            // Sysctls: ?HostConfigSysctls = null,
-            Runtime: ?[]const u8 = null,
-            Isolation: []const u8,
-            MaskedPaths: []const []const u8,
-            ReadonlyPaths: []const []const u8,
-
-            pub const HostConfigBlkioWeightDevice = struct {
-                Path: []const u8,
-                Weight: i64,
-            };
-
-            pub const HostConfigBlkioDeviceReadBps = struct {
-                Path: []const u8,
-                Rate: i64,
-            };
-
-            pub const HostConfigBlkioDeviceWriteBps = struct {
-                Path: []const u8,
-                Rate: i64,
-            };
-
-            pub const HostConfigBlkioDeviceReadIOps = struct {
-                Path: []const u8,
-                Rate: i64,
-            };
-
-            pub const HostConfigBlkioDeviceWriteIOps = struct {
-                Path: []const u8,
-                Rate: i64,
-            };
-
-            pub const HostConfigDevices = struct {
-                PathOnHost: []const u8,
-                PathInContainer: []const u8,
-                CgroupPermissions: []const u8,
-            };
-
-            pub const HostConfigDeviceRequests = struct {
-                Driver: []const u8,
-                Count: i64,
-                DeviceIDs: []const []const u8,
-                Capabilities: []const []const u8,
-                // Options: DeviceRequestsOptions
-            };
-
-            pub const HostConfigUlimits = struct {
-                Name: []const u8,
-                Soft: i64,
-                Hard: i64,
-            };
-
-            pub const HostConfigLogConfig = struct {
-                Type: []const u8,
-                // Config: LogConfigConfig,
-            };
-
-            pub const HostConfigRestartPolicy = struct {
-                Name: []const u8,
-                MaximumRetryCount: i64,
-            };
-
-            pub const HostConfigMounts = struct {
-                Target: []const u8,
-                Source: []const u8,
-                Type: []const u8,
-                ReadOnly: bool,
-                Consistency: []const u8,
-                BindOptions: MountsBindOptions,
-                VolumeOptions: MountsVolumeOptions,
-                ImageOptions: MountsImageOptions,
-                TmpfsOptions: MountsTmpfsOptions,
-
-                pub const MountsBindOptions = struct {
-                    Propagation: []const u8,
-                    NonRecursive: bool,
-                    CreateMountpoint: bool,
-                    ReadOnlyNonRecursive: bool,
-                    ReadOnlyForceRecursive: bool,
-                };
-
-                pub const MountsVolumeOptions = struct {
-                    NoCopy: bool,
-                    // Labels: VolumeOptionsLabels,
-                    DriverConfig: VolumeOptionsDriverConfig,
-                    Subpath: []const u8,
-
-                    pub const VolumeOptionsDriverConfig = struct {
-                        Name: []const u8,
-                        // Options: DriverConfigOptions,
-                    };
-                };
-
-                pub const MountsImageOptions = struct {
-                    Subpath: []const u8,
-                };
-
-                pub const MountsTmpfsOptions = struct {
-                    SizeBytes: i64,
-                    Mode: i64,
-                    Options: []const []const u8,
-                };
-            };
-        };
-
-        pub const DataGraphDriver = struct {
-            Name: []const u8,
-            // Data: GraphDriverData,
-        };
-
-        pub const DataMounts = struct {
-            Type: []const u8,
-            Name: []const u8,
-            Source: []const u8,
-            Destination: []const u8,
-            Driver: []const u8,
-            Mode: []const u8,
-            RW: bool,
-            Propagation: []const u8,
-        };
-
-        pub const DataConfig = struct {
-            Hostname: []const u8,
-            Domainname: []const u8,
-            User: []const u8,
-            AttachStdin: bool,
-            AttachStdout: bool,
-            AttachStderr: bool,
-            // ExposedPorts: ?ConfigExposedPorts = null,
-            Tty: bool,
-            OpenStdin: bool,
-            StdinOnce: bool,
-            Env: []const []const u8,
-            Cmd: []const []const u8,
-            Healthcheck: ?ConfigHealthcheck = null,
-            ArgsEscaped: ?bool = null,
-            Image: []const u8,
-            // Volumes: ?ConfigVolumes = null,
-            WorkingDir: []const u8,
-            Entrypoint: ?[]const []const u8 = null,
-            NetworkDisabled: ?bool = null,
-            MacAddress: ?[]const u8 = null,
-            OnBuild: ?[]const []const u8 = null,
-            // Labels: ConfigLabels,
-            StopSignal: ?[]const u8 = null,
-            StopTimeout: ?i64 = null,
-            Shell: ?[]const []const u8 = null,
-
-            pub const ConfigHealthcheck = struct {
-                Test: []const []const u8,
-                Interval: i64,
-                Timeout: i64,
-                Retries: i64,
-                StartPeriod: i64,
-                StartInterval: i64,
-            };
-        };
-
-        pub const DataNetworkSettings = struct {
-            Bridge: []const u8,
-            SandboxID: []const u8,
-            HairpinMode: bool,
-            LinkLocalIPv6Address: []const u8,
-            LinkLocalIPv6PrefixLen: i64,
-            // Ports: ?NetworkSettingsPorts = null,
-            SandboxKey: []const u8,
-            SecondaryIPAddresses: ?[]NetworkSettingsSecondaryIPAddresses = null,
-            SecondaryIPv6Addresses: ?[]NetworkSettingsSecondaryIPv6Addresses = null,
-            EndpointID: []const u8,
-            Gateway: []const u8,
-            GlobalIPv6Address: []const u8,
-            GlobalIPv6PrefixLen: i64,
-            IPAddress: []const u8,
-            IPPrefixLen: i64,
-            IPv6Gateway: []const u8,
-            MacAddress: []const u8,
-            // Networks: NetworkSettingsNetworks,
-
-            pub const NetworkSettingsSecondaryIPAddresses = struct {
-                Addr: []const u8,
-                PrefixLen: i64,
-            };
-
-            pub const NetworkSettingsSecondaryIPv6Addresses = struct {
-                Addr: []const u8,
-                PrefixLen: i64,
-            };
-        };
-
-        pub const id_len: u7 = 64;
-    };
-
     pub fn init(allocator: std.mem.Allocator, path: []const u8) Container {
         const container = Container{
             .path = path,
@@ -488,7 +156,7 @@ pub const CreateRes = struct {
     arena_allocator: *std.heap.ArenaAllocator,
 
     pub const Body = struct {
-        Id: [Container.Data.id_len]u8,
+        Id: [Data.id_len]u8,
         Warnings: []const []const u8,
     };
 
@@ -710,8 +378,340 @@ pub const InspectReq = struct {
     pub fn deinit(_: *InspectReq) void {}
 };
 
+pub const Data = struct {
+    Id: [id_len]u8,
+    Created: ?[]const u8 = null,
+    Path: []const u8,
+    Args: []const []const u8,
+    State: ?DataState = null,
+    Image: []const u8,
+    ResolvConfPath: []const u8,
+    HostnamePath: []const u8,
+    HostsPath: []const u8,
+    LogPath: ?[]const u8 = null,
+    Name: []const u8,
+    RestartCount: i64,
+    Driver: []const u8,
+    Platform: []const u8,
+    ImageManifestDescriptor: ?DataImageManifestDescriptor = null,
+    MountLabel: []const u8,
+    ProcessLabel: []const u8,
+    AppArmorProfile: []const u8,
+    ExecIDs: ?[]const []const u8 = null,
+    HostConfig: DataHostConfig,
+    GraphDriver: DataGraphDriver,
+    SizeRw: ?i64 = null,
+    SizeRootFs: ?i64 = null,
+    Mounts: []DataMount,
+    Config: DataConfig,
+    NetworkSettings: DataNetworkSettings,
+
+    pub const DataState = struct {
+        Status: []const u8,
+        Running: bool,
+        Paused: bool,
+        Restarting: bool,
+        OOMKilled: bool,
+        Dead: bool,
+        Pid: i64,
+        ExitCode: i64,
+        Error: []const u8,
+        StartedAt: []const u8,
+        FinishedAt: []const u8,
+        Health: ?StateHealth = null,
+
+        pub const StateHealth = struct {
+            Status: []const u8,
+            FailingStreak: i64,
+            Log: ?[]HealthLog = null,
+
+            pub const HealthLog = struct {
+                Start: []const u8,
+                End: []const u8,
+                ExitCode: i64,
+                Output: []const u8,
+            };
+        };
+    };
+
+    pub const DataImageManifestDescriptor = struct {
+        mediaType: []const u8,
+        digest: []const u8,
+        size: i64,
+        urls: ?[]const []const u8 = null,
+        // annotations: ?ImageManifestDescriptorAnnotation = null,
+        data: ?[]const u8 = null,
+        platform: ?ImageManifestDescriptorPlatform = null,
+        artifactType: ?[]const u8 = null,
+
+        pub const ImageManifestDescriptorPlatform = struct {
+            architecture: []const u8,
+            os: []const u8,
+            @"os.version": []const u8,
+            @"os.features": []const []const u8,
+            variant: []const u8,
+        };
+    };
+
+    pub const DataHostConfig = struct {
+        CpuShares: i64,
+        Memory: i64,
+        CgroupParent: []const u8,
+        BlkioWeight: i64,
+        BlkioWeightDevice: ?[]HostConfigBlkioWeightDevice = null,
+        BlkioDeviceReadBps: ?[]HostConfigBlkioDeviceReadBps = null,
+        BlkioDeviceWriteBps: ?[]HostConfigBlkioDeviceWriteBps = null,
+        BlkioDeviceReadIOps: ?[]HostConfigBlkioDeviceReadIOps = null,
+        BlkioDeviceWriteIOps: ?[]HostConfigBlkioDeviceWriteIOps = null,
+        CpuPeriod: i64,
+        CpuQuota: i64,
+        CpuRealtimePeriod: i64,
+        CpuRealtimeRuntime: i64,
+        CpusetCpus: []const u8,
+        CpusetMems: []const u8,
+        Devices: ?[]HostConfigDevice = null,
+        DeviceCgroupRules: ?[]const []const u8 = null,
+        DeviceRequests: ?[]HostConfigDeviceRequest = null,
+        KernelMemoryTCP: ?i64 = null,
+        MemoryReservation: i64,
+        MemorySwap: i64,
+        MemorySwappiness: ?i64 = null,
+        NanoCpus: i64,
+        OomKillDisable: bool,
+        Init: ?bool = null,
+        PidsLimit: ?i64 = null,
+        Ulimits: ?[]HostConfigUlimit = null,
+        CpuCount: i64,
+        CpuPercent: i64,
+        IOMaximumIOps: i64,
+        IOMaximumBandwidth: i64,
+        Binds: ?[]const []const u8 = null,
+        ContainerIDFile: []const u8,
+        LogConfig: HostConfigLogConfig,
+        NetworkMode: []const u8,
+        // PortBindings: ?HostConfigPortBindings = null,
+        RestartPolicy: HostConfigRestartPolicy,
+        AutoRemove: bool,
+        VolumeDriver: []const u8,
+        VolumesFrom: ?[]const []const u8 = null,
+        Mounts: ?[]HostConfigMount = null,
+        ConsoleSize: ?[]i64 = null,
+        // Annotations: HostConfigAnnotations,
+        CapAdd: ?[]const []const u8 = null,
+        CapDrop: ?[]const []const u8 = null,
+        CgroupnsMode: []const u8,
+        Dns: ?[]const []const u8 = null,
+        DnsOptions: ?[]const []const u8 = null,
+        DnsSearch: ?[]const []const u8 = null,
+        ExtraHosts: ?[]const []const u8 = null,
+        GroupAdd: ?[]const []const u8 = null,
+        IpcMode: []const u8,
+        Cgroup: []const u8,
+        Links: ?[]const []const u8 = null,
+        OomScoreAdj: i64,
+        PidMode: []const u8,
+        Privileged: bool,
+        PublishAllPorts: bool,
+        ReadonlyRootfs: bool,
+        SecurityOpt: ?[]const []const u8 = null,
+        // StorageOpt: ?HostConfigStorageOpt = null,
+        // Tmpfs: ?HostConfigTmpfs = null,
+        UTSMode: []const u8,
+        UsernsMode: []const u8,
+        ShmSize: i64,
+        // Sysctls: ?HostConfigSysctls = null,
+        Runtime: ?[]const u8 = null,
+        Isolation: []const u8,
+        MaskedPaths: []const []const u8,
+        ReadonlyPaths: []const []const u8,
+
+        pub const HostConfigBlkioWeightDevice = struct {
+            Path: []const u8,
+            Weight: i64,
+        };
+
+        pub const HostConfigBlkioDeviceReadBps = struct {
+            Path: []const u8,
+            Rate: i64,
+        };
+
+        pub const HostConfigBlkioDeviceWriteBps = struct {
+            Path: []const u8,
+            Rate: i64,
+        };
+
+        pub const HostConfigBlkioDeviceReadIOps = struct {
+            Path: []const u8,
+            Rate: i64,
+        };
+
+        pub const HostConfigBlkioDeviceWriteIOps = struct {
+            Path: []const u8,
+            Rate: i64,
+        };
+
+        pub const HostConfigDevice = struct {
+            PathOnHost: []const u8,
+            PathInContainer: []const u8,
+            CgroupPermissions: []const u8,
+        };
+
+        pub const HostConfigDeviceRequest = struct {
+            Driver: []const u8,
+            Count: i64,
+            DeviceIDs: []const []const u8,
+            Capabilities: []const []const u8,
+            // Options: DeviceRequestsOptions
+        };
+
+        pub const HostConfigUlimit = struct {
+            Name: []const u8,
+            Soft: i64,
+            Hard: i64,
+        };
+
+        pub const HostConfigLogConfig = struct {
+            Type: []const u8,
+            // Config: LogConfigConfig,
+        };
+
+        pub const HostConfigRestartPolicy = struct {
+            Name: []const u8,
+            MaximumRetryCount: i64,
+        };
+
+        pub const HostConfigMount = struct {
+            Target: []const u8,
+            Source: []const u8,
+            Type: []const u8,
+            ReadOnly: bool,
+            Consistency: []const u8,
+            BindOptions: MountsBindOptions,
+            VolumeOptions: MountsVolumeOptions,
+            ImageOptions: MountsImageOptions,
+            TmpfsOptions: MountsTmpfsOptions,
+
+            pub const MountsBindOptions = struct {
+                Propagation: []const u8,
+                NonRecursive: bool,
+                CreateMountpoint: bool,
+                ReadOnlyNonRecursive: bool,
+                ReadOnlyForceRecursive: bool,
+            };
+
+            pub const MountsVolumeOptions = struct {
+                NoCopy: bool,
+                // Labels: VolumeOptionsLabels,
+                DriverConfig: VolumeOptionsDriverConfig,
+                Subpath: []const u8,
+
+                pub const VolumeOptionsDriverConfig = struct {
+                    Name: []const u8,
+                    // Options: DriverConfigOptions,
+                };
+            };
+
+            pub const MountsImageOptions = struct {
+                Subpath: []const u8,
+            };
+
+            pub const MountsTmpfsOptions = struct {
+                SizeBytes: i64,
+                Mode: i64,
+                Options: []const []const u8,
+            };
+        };
+    };
+
+    pub const DataGraphDriver = struct {
+        Name: []const u8,
+        // Data: GraphDriverData,
+    };
+
+    pub const DataMount = struct {
+        Type: []const u8,
+        Name: []const u8,
+        Source: []const u8,
+        Destination: []const u8,
+        Driver: []const u8,
+        Mode: []const u8,
+        RW: bool,
+        Propagation: []const u8,
+    };
+
+    pub const DataConfig = struct {
+        Hostname: []const u8,
+        Domainname: []const u8,
+        User: []const u8,
+        AttachStdin: bool,
+        AttachStdout: bool,
+        AttachStderr: bool,
+        // ExposedPorts: ?ConfigExposedPorts = null,
+        Tty: bool,
+        OpenStdin: bool,
+        StdinOnce: bool,
+        Env: []const []const u8,
+        Cmd: []const []const u8,
+        Healthcheck: ?ConfigHealthcheck = null,
+        ArgsEscaped: ?bool = null,
+        Image: []const u8,
+        // Volumes: ?ConfigVolumes = null,
+        WorkingDir: []const u8,
+        Entrypoint: ?[]const []const u8 = null,
+        NetworkDisabled: ?bool = null,
+        MacAddress: ?[]const u8 = null,
+        OnBuild: ?[]const []const u8 = null,
+        // Labels: ConfigLabels,
+        StopSignal: ?[]const u8 = null,
+        StopTimeout: ?i64 = null,
+        Shell: ?[]const []const u8 = null,
+
+        pub const ConfigHealthcheck = struct {
+            Test: []const []const u8,
+            Interval: i64,
+            Timeout: i64,
+            Retries: i64,
+            StartPeriod: i64,
+            StartInterval: i64,
+        };
+    };
+
+    pub const DataNetworkSettings = struct {
+        Bridge: []const u8,
+        SandboxID: []const u8,
+        HairpinMode: bool,
+        LinkLocalIPv6Address: []const u8,
+        LinkLocalIPv6PrefixLen: i64,
+        // Ports: ?NetworkSettingsPorts = null,
+        SandboxKey: []const u8,
+        SecondaryIPAddresses: ?[]NetworkSettingsSecondaryIPAddress = null,
+        SecondaryIPv6Addresses: ?[]NetworkSettingsSecondaryIPv6Address = null,
+        EndpointID: []const u8,
+        Gateway: []const u8,
+        GlobalIPv6Address: []const u8,
+        GlobalIPv6PrefixLen: i64,
+        IPAddress: []const u8,
+        IPPrefixLen: i64,
+        IPv6Gateway: []const u8,
+        MacAddress: []const u8,
+        // Networks: NetworkSettingsNetworks,
+
+        pub const NetworkSettingsSecondaryIPAddress = struct {
+            Addr: []const u8,
+            PrefixLen: i64,
+        };
+
+        pub const NetworkSettingsSecondaryIPv6Address = struct {
+            Addr: []const u8,
+            PrefixLen: i64,
+        };
+    };
+
+    pub const id_len: u7 = 64;
+};
+
 pub const InspectRes = struct {
-    body: Container.Data,
+    body: Data,
 
     arena_allocator: *std.heap.ArenaAllocator,
 
@@ -724,7 +724,7 @@ pub const InspectRes = struct {
         return arena_allocator;
     }
 
-    pub fn init(arena_allocator: *std.heap.ArenaAllocator, body: Container.Data) InspectRes {
+    pub fn init(arena_allocator: *std.heap.ArenaAllocator, body: Data) InspectRes {
         const inspect_res = InspectRes{
             .body = body,
             .arena_allocator = arena_allocator,
@@ -1033,7 +1033,7 @@ fn makeInspectRequest(allocator: std.mem.Allocator, path: []const u8, id_or_name
                 var arena_allocator = try InspectRes.createArenaAllocator(allocator);
                 errdefer allocator.destroy(arena_allocator);
 
-                const res_body = try std.json.parseFromSliceLeaky(Container.Data, arena_allocator.allocator(), body, .{ .allocate = .alloc_always, .ignore_unknown_fields = true });
+                const res_body = try std.json.parseFromSliceLeaky(Data, arena_allocator.allocator(), body, .{ .allocate = .alloc_always, .ignore_unknown_fields = true });
 
                 http_response.deinit(allocator);
 
