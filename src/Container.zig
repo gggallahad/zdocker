@@ -103,281 +103,6 @@ pub const ContainerError = error{
 
 // api
 
-// create
-
-pub const CreateReq = struct {
-    pub const method = http.Method.POST;
-    pub const path = "/containers/create";
-
-    pub const arg_name = "name";
-    pub const arg_platform = "platform";
-
-    args: Args,
-    body: Body,
-
-    allocator: std.mem.Allocator,
-
-    pub const Args = struct {
-        name: []const u8,
-        platform: []const u8,
-    };
-
-    pub const Body = struct {
-        Image: []const u8,
-        Cmd: []const []const u8,
-    };
-
-    pub fn init(allocator: std.mem.Allocator, name: []const u8, platform: []const u8, image: []const u8, cmd: []const []const u8) CreateReq {
-        const create_req = CreateReq{
-            .args = .{
-                .name = name,
-                .platform = platform,
-            },
-            .body = .{
-                .Image = image,
-                .Cmd = cmd,
-            },
-            .allocator = allocator,
-        };
-        return create_req;
-    }
-
-    pub fn deinit(self: *CreateReq) void {
-        self.allocator.free(self.args.name);
-        self.allocator.free(self.args.platform);
-        self.allocator.free(self.body.Image);
-        self.allocator.free(self.body.Cmd);
-    }
-};
-
-pub const CreateRes = struct {
-    body: Body,
-
-    arena_allocator: *std.heap.ArenaAllocator,
-
-    pub const Body = struct {
-        Id: [Data.id_len]u8,
-        Warnings: []const []const u8,
-    };
-
-    pub fn createArenaAllocator(allocator: std.mem.Allocator) !*std.heap.ArenaAllocator {
-        var arena_allocator = try allocator.create(std.heap.ArenaAllocator);
-        errdefer allocator.destroy(arena_allocator);
-        arena_allocator.* = std.heap.ArenaAllocator.init(allocator);
-        errdefer arena_allocator.deinit();
-
-        return arena_allocator;
-    }
-
-    pub fn init(arena_allocator: *std.heap.ArenaAllocator, body: Body) CreateRes {
-        const create_res = CreateRes{
-            .body = body,
-            .arena_allocator = arena_allocator,
-        };
-        return create_res;
-    }
-
-    pub fn deinit(self: *CreateRes) void {
-        const allocator = self.arena_allocator.child_allocator;
-        self.arena_allocator.deinit();
-        allocator.destroy(self.arena_allocator);
-    }
-};
-
-pub const CreateError = error{
-    BadParameter,
-    NoSuchImage,
-    Conflict,
-    ServerError,
-};
-
-// remove
-
-pub const RemoveReq = struct {
-    pub const method = http.Method.DELETE;
-    pub const path = "/containers/{s}";
-
-    pub const arg_v = "v";
-    pub const arg_force = "force";
-    pub const arg_link = "link";
-
-    args: Args,
-
-    allocator: std.mem.Allocator,
-
-    pub const Args = struct {
-        v: bool,
-        force: bool,
-        link: bool,
-    };
-
-    pub fn init(allocator: std.mem.Allocator, v: bool, force: bool, link: bool) RemoveReq {
-        const remove_req = RemoveReq{
-            .args = .{
-                .v = v,
-                .force = force,
-                .link = link,
-            },
-            .allocator = allocator,
-        };
-        return remove_req;
-    }
-
-    pub fn deinit(_: *RemoveReq) void {}
-};
-
-pub const RemoveError = error{
-    BadParameter,
-    NoSuchContainer,
-    Conflict,
-    ServerError,
-};
-
-// start
-
-pub const StartReq = struct {
-    pub const method = http.Method.POST;
-    pub const path = "/containers/{s}/start";
-
-    pub const arg_detachKeys = "detachKeys";
-
-    args: Args,
-
-    allocator: std.mem.Allocator,
-
-    pub const Args = struct {
-        detachKeys: []const u8,
-    };
-
-    pub fn init(allocator: std.mem.Allocator, detachKeys: []const u8) StartReq {
-        const start_req = StartReq{
-            .args = .{
-                .detachKeys = detachKeys,
-            },
-            .allocator = allocator,
-        };
-        return start_req;
-    }
-
-    pub fn deinit(self: *StartReq) void {
-        self.allocator.free(self.args.detachKeys);
-    }
-};
-
-pub const StartError = error{
-    ContainerAlreadyStarted,
-    NoSuchContainer,
-    ServerError,
-};
-
-// stop
-
-pub const StopReq = struct {
-    pub const method = http.Method.POST;
-    pub const path = "/containers/{s}/stop";
-
-    pub const arg_signal = "signal";
-    pub const arg_t = "t";
-
-    args: Args,
-
-    allocator: std.mem.Allocator,
-
-    pub const Args = struct {
-        signal: []const u8,
-        t: i64,
-    };
-
-    pub fn init(allocator: std.mem.Allocator, signal: []const u8, t: i64) StopReq {
-        const stop_req = StopReq{
-            .args = .{
-                .signal = signal,
-                .t = t,
-            },
-            .allocator = allocator,
-        };
-        return stop_req;
-    }
-
-    pub fn deinit(self: *StopReq) void {
-        self.allocator.free(self.args.signal);
-    }
-};
-
-pub const StopError = error{
-    ContainerAlreadyStopped,
-    NoSuchContainer,
-    ServerError,
-};
-
-// restart
-
-pub const RestartReq = struct {
-    pub const method = http.Method.POST;
-    pub const path = "/containers/{s}/restart";
-
-    pub const arg_signal = "signal";
-    pub const arg_t = "t";
-
-    args: Args,
-
-    allocator: std.mem.Allocator,
-
-    pub const Args = struct {
-        signal: []const u8,
-        t: i64,
-    };
-
-    pub fn init(allocator: std.mem.Allocator, signal: []const u8, t: i64) RestartReq {
-        const restart_req = RestartReq{
-            .args = .{
-                .signal = signal,
-                .t = t,
-            },
-            .allocator = allocator,
-        };
-        return restart_req;
-    }
-
-    pub fn deinit(self: *RestartReq) void {
-        self.allocator.free(self.args.signal);
-    }
-};
-
-pub const RestartError = error{
-    NoSuchContainer,
-    ServerError,
-};
-
-// inspect
-
-pub const InspectReq = struct {
-    pub const method = http.Method.GET;
-    pub const path = "/containers/{s}/json";
-
-    pub const arg_size = "size";
-
-    args: Args,
-
-    allocator: std.mem.Allocator,
-
-    pub const Args = struct {
-        size: bool,
-    };
-
-    pub fn init(allocator: std.mem.Allocator, size: bool) InspectReq {
-        const inspect_req = InspectReq{
-            .args = .{
-                .size = size,
-            },
-            .allocator = allocator,
-        };
-        return inspect_req;
-    }
-
-    pub fn deinit(_: *InspectReq) void {}
-};
-
 pub const Data = struct {
     Id: [id_len]u8,
     Created: ?[]const u8 = null,
@@ -586,12 +311,12 @@ pub const Data = struct {
             Type: []const u8,
             ReadOnly: bool,
             Consistency: []const u8,
-            BindOptions: MountsBindOptions,
-            VolumeOptions: MountsVolumeOptions,
-            ImageOptions: MountsImageOptions,
-            TmpfsOptions: MountsTmpfsOptions,
+            BindOptions: MountBindOptions,
+            VolumeOptions: MountVolumeOptions,
+            ImageOptions: MountImageOptions,
+            TmpfsOptions: MountTmpfsOptions,
 
-            pub const MountsBindOptions = struct {
+            pub const MountBindOptions = struct {
                 Propagation: []const u8,
                 NonRecursive: bool,
                 CreateMountpoint: bool,
@@ -599,7 +324,7 @@ pub const Data = struct {
                 ReadOnlyForceRecursive: bool,
             };
 
-            pub const MountsVolumeOptions = struct {
+            pub const MountVolumeOptions = struct {
                 NoCopy: bool,
                 // Labels: VolumeOptionsLabels,
                 DriverConfig: VolumeOptionsDriverConfig,
@@ -611,11 +336,11 @@ pub const Data = struct {
                 };
             };
 
-            pub const MountsImageOptions = struct {
+            pub const MountImageOptions = struct {
                 Subpath: []const u8,
             };
 
-            pub const MountsTmpfsOptions = struct {
+            pub const MountTmpfsOptions = struct {
                 SizeBytes: i64,
                 Mode: i64,
                 Options: []const []const u8,
@@ -710,32 +435,405 @@ pub const Data = struct {
     pub const id_len: u7 = 64;
 };
 
-pub const InspectRes = struct {
-    body: Data,
+// create
 
-    arena_allocator: *std.heap.ArenaAllocator,
+pub const CreateReq = struct {
+    pub const method = http.Method.POST;
+    pub const path = "/containers/create";
 
-    pub fn createArenaAllocator(allocator: std.mem.Allocator) !*std.heap.ArenaAllocator {
-        var arena_allocator = try allocator.create(std.heap.ArenaAllocator);
-        errdefer allocator.destroy(arena_allocator);
-        arena_allocator.* = std.heap.ArenaAllocator.init(allocator);
-        errdefer arena_allocator.deinit();
+    pub const arg_name = "name";
+    pub const arg_platform = "platform";
 
-        return arena_allocator;
+    args: Args,
+    body: Body,
+
+    pub const Args = struct {
+        name: []const u8,
+        platform: []const u8,
+    };
+
+    pub const Body = struct {
+        Hostname: []const u8,
+        Domainname: []const u8,
+        User: []const u8,
+        AttachStdin: bool,
+        AttachStdout: bool,
+        AttachStderr: bool,
+        // ExposedPorts: ?BodyExposedPorts = null,
+        Tty: bool,
+        OpenStdin: bool,
+        StdinOnce: bool,
+        Env: []const []const u8,
+        Cmd: []const []const u8,
+        Healthcheck: BodyHealthcheck,
+        ArgsEscaped: ?bool,
+        Image: []const u8,
+        // Volumes: BodyVolumes,
+        WorkingDir: []const u8,
+        Entrypoint: []const []const u8,
+        NetworkDisabled: ?bool,
+        MacAddress: ?[]const u8,
+        OnBuild: ?[]const []const u8,
+        // Labels: BodyLabels,
+        StopSignal: ?[]const u8,
+        StopTimeout: ?i64,
+        Shell: ?[]const []const u8,
+        HostConfig: BodyHostConfig,
+        // NetworkConfig: BodyNetworkConfig
+
+        pub const BodyHealthcheck = struct {
+            Test: []const []const u8,
+            Interval: i64,
+            Timeout: i64,
+            Retries: i64,
+            StartPeriod: i64,
+            StartInterval: i64,
+        };
+
+        pub const BodyHostConfig = struct {
+            CpuShares: i64,
+            Memory: i64,
+            CgroupParent: []const u8,
+            BlkioWeight: i64,
+            BlkioWeightDevice: []HostConfigBlkioWeightDevice,
+            BlkioDeviceReadBps: []HostConfigBlkioDeviceReadBps,
+            BlkioDeviceWriteBps: []HostConfigBlkioDeviceWriteBps,
+            BlkioDeviceReadIOps: []HostConfigBlkioDeviceReadIOps,
+            BlkioDeviceWriteIOps: []HostConfigBlkioDeviceWriteIOps,
+            CpuPeriod: i64,
+            CpuQuota: i64,
+            CpuRealtimePeriod: i64,
+            CpuRealtimeRuntime: i64,
+            CpusetCpus: []const u8,
+            CpusetMems: []const u8,
+            Devices: []HostConfigDevice,
+            DeviceCgroupRules: []const []const u8,
+            DeviceRequests: []HostConfigDeviceRequest,
+            KernelMemoryTCP: i64,
+            MemoryReservation: i64,
+            MemorySwap: i64,
+            MemorySwappiness: i64,
+            NanoCpus: i64,
+            OomKillDisable: bool,
+            Init: ?bool,
+            PidsLimit: ?bool,
+            Ulimits: []HostConfigUlimit,
+            CpuCount: i64,
+            CpuPercent: i64,
+            IOMaximumIOps: i64,
+            IOMaximumBandwidth: i64,
+            Binds: []const []const u8,
+            ContainerIDFile: []const u8,
+            LogConfig: HostConfigLogConfig,
+            NetworkMode: []const u8,
+            // PortBindings: HostConfigPortBindings,
+            RestartPolicy: HostConfigRestartPolicy,
+            AutoRemove: bool,
+            VolumeDriver: []const u8,
+            VolumesFrom: []const []const u8,
+            Mounts: []HostConfigMount,
+            ConsoleSize: ?[]i64,
+            // Annotations: HostConfigAnnotations,
+            CapAdd: []const []const u8,
+            CapDrop: []const []const u8,
+            CgroupnsMode: []const u8,
+            Dns: []const []const u8,
+            DnsOptions: []const []const u8,
+            DnsSearch: []const []const u8,
+            ExtraHosts: []const []const u8,
+            GroupAdd: []const []const u8,
+            IpcMode: []const u8,
+            Cgroup: []const u8,
+            Links: []const []const u8,
+            OomScoreAdj: i64,
+            PidMode: []const u8,
+            Privileged: bool,
+            PublishAllPorts: bool,
+            ReadonlyRootfs: bool,
+            SecurityOpt: []const []const u8,
+            // StorageOpt: HostConfigStorageOpt,
+            // Tmpfs: HostConfigTmpfs,
+            UTSMode: []const u8,
+            UsernsMode: []const u8,
+            ShmSize: i64,
+            // Sysctls: ?HostConfigSysctls = null,
+            Runtime: ?[]const u8,
+            Isolation: []const u8,
+            MaskedPaths: []const []const u8,
+            ReadonlyPaths: []const []const u8,
+
+            pub const HostConfigBlkioWeightDevice = struct {
+                Path: []const u8,
+                Weight: i64,
+            };
+
+            pub const HostConfigBlkioDeviceReadBps = struct {
+                Path: []const u8,
+                Rate: i64,
+            };
+
+            pub const HostConfigBlkioDeviceWriteBps = struct {
+                Path: []const u8,
+                Rate: i64,
+            };
+
+            pub const HostConfigBlkioDeviceReadIOps = struct {
+                Path: []const u8,
+                Rate: i64,
+            };
+
+            pub const HostConfigBlkioDeviceWriteIOps = struct {
+                Path: []const u8,
+                Rate: i64,
+            };
+
+            pub const HostConfigDevice = struct {
+                PathOnHost: []const u8,
+                PathInContainer: []const u8,
+                CgroupPermissions: []const u8,
+            };
+
+            pub const HostConfigDeviceRequest = struct {
+                Driver: []const u8,
+                Count: i64,
+                DeviceIDs: []const []const u8,
+                Capabilities: []const []const u8,
+                // Options: DeviceRequestOptions,
+            };
+
+            pub const HostConfigUlimit = struct {
+                Name: []const u8,
+                Soft: i64,
+                Hard: i64,
+            };
+
+            pub const HostConfigLogConfig = struct {
+                Type: []const u8,
+                // Config: LogConfigConfig,
+            };
+
+            pub const HostConfigRestartPolicy = struct {
+                Name: []const u8,
+                MaximumRetryCount: i64,
+            };
+
+            pub const HostConfigMount = struct {
+                Target: []const u8,
+                Source: []const u8,
+                Type: []const u8,
+                ReadOnly: bool,
+                Consistency: []const u8,
+                BindOptions: MountBindOptions,
+                VolumeOptions: MountVolumeOptions,
+                ImageOptions: MountImageOptions,
+                TmpfsOptions: MountTmpfsOptions,
+
+                pub const MountBindOptions = struct {
+                    Propagation: []const u8,
+                    NonRecursive: bool,
+                    CreateMountpoint: bool,
+                    ReadOnlyNonRecursive: bool,
+                    ReadOnlyForceRecursive: bool,
+                };
+
+                pub const MountVolumeOptions = struct {
+                    NoCopy: bool,
+                    // Labels: VolumeOptionsLabels,
+                    DriverConfig: VolumeOptionsDriverConfig,
+                    Subpath: []const u8,
+
+                    pub const VolumeOptionsDriverConfig = struct {
+                        Name: []const u8,
+                        // Options: DriverConfigOptions
+                    };
+                };
+
+                pub const MountImageOptions = struct {
+                    Subpath: []const u8,
+                };
+
+                pub const MountTmpfsOptions = struct {
+                    SizeBytes: i64,
+                    Mode: i64,
+                    Options: []const []const u8,
+                };
+            };
+        };
+    };
+};
+
+pub const CreateRes = struct {
+    body: Body,
+    body_allocator: *std.heap.ArenaAllocator,
+
+    pub const Body = struct {
+        Id: [Data.id_len]u8,
+        Warnings: []const []const u8,
+    };
+
+    fn createBodyAllocator(allocator: std.mem.Allocator) !*std.heap.ArenaAllocator {
+        var body_allocator = try allocator.create(std.heap.ArenaAllocator);
+        errdefer allocator.destroy(body_allocator);
+        body_allocator.* = std.heap.ArenaAllocator.init(allocator);
+        errdefer body_allocator.deinit();
+
+        return body_allocator;
     }
 
-    pub fn init(arena_allocator: *std.heap.ArenaAllocator, body: Data) InspectRes {
+    fn init(body_allocator: *std.heap.ArenaAllocator, body: Body) CreateRes {
+        const create_res = CreateRes{
+            .body = body,
+            .body_allocator = body_allocator,
+        };
+        return create_res;
+    }
+
+    pub fn deinit(self: *CreateRes) void {
+        const allocator = self.body_allocator.child_allocator;
+        self.body_allocator.deinit();
+        allocator.destroy(self.body_allocator);
+    }
+};
+
+pub const CreateError = error{
+    BadParameter,
+    NoSuchImage,
+    Conflict,
+    ServerError,
+};
+
+// remove
+
+pub const RemoveReq = struct {
+    pub const method = http.Method.DELETE;
+    pub const path = "/containers/{s}";
+
+    pub const arg_v = "v";
+    pub const arg_force = "force";
+    pub const arg_link = "link";
+
+    args: Args,
+
+    pub const Args = struct {
+        v: bool,
+        force: bool,
+        link: bool,
+    };
+};
+
+pub const RemoveError = error{
+    BadParameter,
+    NoSuchContainer,
+    Conflict,
+    ServerError,
+};
+
+// start
+
+pub const StartReq = struct {
+    pub const method = http.Method.POST;
+    pub const path = "/containers/{s}/start";
+
+    pub const arg_detachKeys = "detachKeys";
+
+    args: Args,
+
+    pub const Args = struct {
+        detachKeys: []const u8,
+    };
+};
+
+pub const StartError = error{
+    ContainerAlreadyStarted,
+    NoSuchContainer,
+    ServerError,
+};
+
+// stop
+
+pub const StopReq = struct {
+    pub const method = http.Method.POST;
+    pub const path = "/containers/{s}/stop";
+
+    pub const arg_signal = "signal";
+    pub const arg_t = "t";
+
+    args: Args,
+
+    pub const Args = struct {
+        signal: []const u8,
+        t: i64,
+    };
+};
+
+pub const StopError = error{
+    ContainerAlreadyStopped,
+    NoSuchContainer,
+    ServerError,
+};
+
+// restart
+
+pub const RestartReq = struct {
+    pub const method = http.Method.POST;
+    pub const path = "/containers/{s}/restart";
+
+    pub const arg_signal = "signal";
+    pub const arg_t = "t";
+
+    args: Args,
+
+    pub const Args = struct {
+        signal: []const u8,
+        t: i64,
+    };
+};
+
+pub const RestartError = error{
+    NoSuchContainer,
+    ServerError,
+};
+
+// inspect
+
+pub const InspectReq = struct {
+    pub const method = http.Method.GET;
+    pub const path = "/containers/{s}/json";
+
+    pub const arg_size = "size";
+
+    args: Args,
+
+    pub const Args = struct {
+        size: bool,
+    };
+};
+
+pub const InspectRes = struct {
+    body: Data,
+    body_allocator: *std.heap.ArenaAllocator,
+
+    fn createBodyAllocator(allocator: std.mem.Allocator) !*std.heap.ArenaAllocator {
+        var body_allocator = try allocator.create(std.heap.ArenaAllocator);
+        errdefer allocator.destroy(body_allocator);
+        body_allocator.* = std.heap.ArenaAllocator.init(allocator);
+        errdefer body_allocator.deinit();
+
+        return body_allocator;
+    }
+
+    fn init(body_allocator: *std.heap.ArenaAllocator, body: Data) InspectRes {
         const inspect_res = InspectRes{
             .body = body,
-            .arena_allocator = arena_allocator,
+            .body_allocator = body_allocator,
         };
         return inspect_res;
     }
 
     pub fn deinit(self: *InspectRes) void {
-        const allocator = self.arena_allocator.child_allocator;
-        self.arena_allocator.deinit();
-        allocator.destroy(self.arena_allocator);
+        const allocator = self.body_allocator.child_allocator;
+        self.body_allocator.deinit();
+        allocator.destroy(self.body_allocator);
     }
 };
 
@@ -774,7 +872,7 @@ fn makeCreateRequest(allocator: std.mem.Allocator, path: []const u8, req: Create
     switch (http_response.status_code) {
         .created => {
             if (http_response.body) |body| {
-                var arena_allocator = try CreateRes.createArenaAllocator(allocator);
+                var arena_allocator = try CreateRes.createBodyAllocator(allocator);
                 errdefer allocator.destroy(arena_allocator);
 
                 const res_body = try std.json.parseFromSliceLeaky(CreateRes.Body, arena_allocator.allocator(), body, .{ .allocate = .alloc_always, .ignore_unknown_fields = true });
@@ -1030,7 +1128,7 @@ fn makeInspectRequest(allocator: std.mem.Allocator, path: []const u8, id_or_name
     switch (http_response.status_code) {
         .ok => {
             if (http_response.body) |body| {
-                var arena_allocator = try InspectRes.createArenaAllocator(allocator);
+                var arena_allocator = try InspectRes.createBodyAllocator(allocator);
                 errdefer allocator.destroy(arena_allocator);
 
                 const res_body = try std.json.parseFromSliceLeaky(Data, arena_allocator.allocator(), body, .{ .allocate = .alloc_always, .ignore_unknown_fields = true });
